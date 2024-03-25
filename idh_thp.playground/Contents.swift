@@ -26,7 +26,7 @@ class PatientRecords {
     //MARK: Patients dictionary to record patient data
     fileprivate var patientsRecord: [Int: Patient] = [:]
     
-    //MARK: Parsing instructions.txt file to retrieve operations information
+    //MARK: Parsing text file to retrieve operations information
     fileprivate func processInstructions(fileName: String) throws {
         
         //Getting file from resources
@@ -174,9 +174,6 @@ do {
 } catch {
     print("[ERROR]: \(error.localizedDescription)")
 }
-
-
-
 
 
 //MARK: ---------- PatientRecords Test Cases ------------------
