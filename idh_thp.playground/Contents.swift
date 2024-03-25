@@ -27,15 +27,13 @@ class PatientRecords {
     fileprivate var patientsRecord: [Int: Patient] = [:]
     
     //MARK: Parsing instructions.txt file to retrieve operations information
-    fileprivate func processInstructions() {
+    fileprivate func processInstructions(fileName: String) throws {
         
-        //Getting file from resources using guard statement
-        guard let filePath = Bundle.main.path(forResource: "instructions", ofType: "txt") else {
-            print("[ERROR]:  No such file found!")
-            return
-        }
+        //Getting file from resources
+        let filePath = Bundle.main.path(forResource: fileName, ofType: "txt") ?? "Invalid File Path"
+        
         do {
-            //Converting .txt file contents to String
+            //Converting file contents to String
             let contents = try String(contentsOfFile: filePath)
             
             //Separating operations line by line
@@ -48,7 +46,7 @@ class PatientRecords {
                 let components = line.split(separator: " ").map { String($0) }
                 
                 //Safeguarding components word count
-                guard components.count > 0, let operation = components.first else {
+                guard components.count > 1, let operation = components.first else {
                     continue
                 }
                 
@@ -116,9 +114,7 @@ class PatientRecords {
                 }
             }
         } catch {
-            
-            //Error handling if file doesn't exist in resources
-            print("[ERROR]: \(error)")
+            throw error
         }
     }
     
@@ -172,8 +168,14 @@ class PatientRecords {
 
 //MARK: Using PatientRecords Class and it's functions
 let records = PatientRecords()
-records.processInstructions()
-records.printFinalList()
+do {
+    try records.processInstructions(fileName: "instructions")
+    records.printFinalList()
+} catch {
+    print("[ERROR]: \(error.localizedDescription)")
+}
+
+
 
 
 
@@ -198,45 +200,27 @@ class PatientRecordsTests: XCTestCase {
     }
     
     //MARK: Testing for valid file processing
-    func testValidFileProcessing() {
-        // Get the test bundle
-        let bundle = Bundle(for: type(of: self))
-        
-        // Load the test file from the bundle
-        guard let fileURL = bundle.url(forResource: "instructions", withExtension: "txt") else {
-            XCTFail("File not found.")
-            return
-        }
-        
+    func testProcessInstructions() {
         do {
-            // Read contents of the file
-            let contents = try String(contentsOf: fileURL)
+            // Processing instructions from the test file
+            try records.processInstructions(fileName: "test_instructions")
             
-            // Separating lines from content
-            let lines = contents.components(separatedBy: .newlines)
+            // Asserting for expected number of patients after processing instructions
+            XCTAssertEqual(records.patientsRecord.count, 4)
             
-            // Set up an expectation for expected number of lines
-            let expectedNumberOfLines = 9
-            
-            //Assert the total number of lines
-            XCTAssertEqual(lines.count, expectedNumberOfLines)
-            
+            // Asserting for expected number of exams for a particular patient
+            XCTAssertEqual(records.patientsRecord[1]?.exams.count, 0)
         } catch {
-            XCTFail("Error reading test file: \(error)")
+            XCTFail()
         }
     }
     
     //MARK: Testing for Invalid file processing
-    func testInvalidFileProcessing() {
-        // Get the test bundle
-        let bundle = Bundle(for: type(of: self))
-        
-        // Load the test file from the bundle
-        guard let fileURL = bundle.url(forResource: "test_instructions", withExtension: "txt") else {
-            XCTAssertThrowsError("File not found!")
-            return
-        }
+    func testInvalidProcessInstructions() {
+        //Processed file throws an error
+        XCTAssertThrowsError(try records.processInstructions(fileName: "test_instructions_fail"))
     }
+    
     
     //MARK: Testing for Add Patient
     func testAddPatient() {
@@ -261,11 +245,11 @@ class PatientRecordsTests: XCTestCase {
     func testAddExam() {
         records.addPatient(patientId: 1, name: "John Doe")
         
-        // Add exam to existing patient
+        // Adding exam to existing patient
         records.addExam(patientId: 1, examId: 101)
         XCTAssertEqual(records.patientsRecord[1]?.exams.count, 1)
         
-        // Add exam to non-existing patient should not add
+        // Adding exam to non-existing patient should not add
         records.addExam(patientId: 2, examId: 102)
         XCTAssertNil(records.patientsRecord[2])
         
@@ -278,15 +262,15 @@ class PatientRecordsTests: XCTestCase {
     func testDeletePatient() {
         records.addPatient(patientId: 1, name: "John Doe")
         
-        // Delete existing patient
+        // Deleting existing patient
         records.deletePatient(id: 1)
         XCTAssertEqual(records.patientsRecord.count, 0)
         
-        // Delete non-existing patient should not change
+        // Deleting non-existing patient should not change
         records.deletePatient(id: 2)
         XCTAssertEqual(records.patientsRecord.count, 0)
         
-        // Delete patient with associated exams
+        // Deleting patient with associated exams
         records.addPatient(patientId: 1, name: "John Doe")
         records.addExam(patientId: 1, examId: 101)
         records.deletePatient(id: 1)
@@ -298,36 +282,19 @@ class PatientRecordsTests: XCTestCase {
         records.addPatient(patientId: 1, name: "John Doe")
         records.addPatient(patientId: 2, name: "Jane Doe")
         
-        // Add exams to patients
+        // Adding exams to patients
         records.addExam(patientId: 1, examId: 101)
         records.addExam(patientId: 2, examId: 102)
         
-        // Delete existing exam
+        // Deleting existing exam
         records.deleteExam(examId: 101)
         XCTAssertFalse(records.patientsRecord[1]?.exams.contains(101) ?? true)
         
-        // Delete non-existing exam should not change
+        // Deleting non-existing exam should not change
         records.deleteExam(examId: 103)
         XCTAssertEqual(records.patientsRecord.count, 2)
     }
     
-    //MARK: Testing for logging final list
-    func testPrintFinalList() {
-        // Test printing final list with no patients
-        records.printFinalList() // No output expected
-        
-        // Add patients and exams
-        records.addPatient(patientId: 1, name: "John Doe")
-        records.addPatient(patientId: 2, name: "Jane Doe")
-        records.addExam(patientId: 1, examId: 101)
-        records.addExam(patientId: 2, examId: 102)
-        
-        // Test printing final list with patients and exams
-        records.printFinalList()
-        // Expected output:
-        // Name: John Doe, Id: 1, Exam Count: 1
-        // Name: Jane Doe, Id: 2, Exam Count: 1
-    }
 }
 
 print("\n---- Testing for Patient Records Service -----\n")
